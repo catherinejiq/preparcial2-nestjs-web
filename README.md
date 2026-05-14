@@ -1,272 +1,226 @@
 # Travel Plans API
 
-API REST desarrollada con **NestJS** para gestionar planes de viaje con integración de datos de países desde una API externa con caché local.
-
-## Características
-
-- **Integración con REST Countries API**: Obtiene datos de países en tiempo real
-- **Caché Local**: Almacena países en BD local para evitar llamadas repetidas
-- **Autenticación**: Guard de administrador para operaciones sensibles
-- **Gestión de Planes de Viaje**: CRUD completo de planes
-- **Validaciones**: DTOs con validaciones automáticas
-- **Base de Datos**: SQLite con TypeORM
+API REST desarrollada con **NestJS** para gestionar planes de viaje con integración de datos de países desde REST Countries API y caché local en SQLite.
 
 ---
 
-## Requisitos Previos
+## Requisitos previos
 
-- Node.js 16+ 
-- npm o yarn
-- Postman o similar para pruebas
+- Node.js 18+
+- npm
 
 ---
 
-## Instalación
+## Instalación y ejecución
 
-1. **Clonar el repositorio:**
 ```bash
+# 1. Clonar el repositorio
 git clone https://github.com/catherinejiq/preparcial2-nestjs-web.git
 cd preparcial2-nestjs-web
-```
 
-2. **Instalar dependencias:**
-```bash
+# 2. Instalar dependencias
 npm install
-```
 
----
+# 3. Configurar variable de entorno para el guard de administrador
+export ADMIN_TOKEN=tu_token_seguro
 
-## Ejecución del Proyecto
-
-### Modo Desarrollo (con auto-reload)
-```bash
+# 4. Iniciar en modo desarrollo (auto-reload)
 npm run start:dev
 ```
 
-### Modo Producción
+El servidor queda disponible en `http://localhost:3000`.
+
+La base de datos SQLite (`travel.db`) se genera automáticamente en la raíz del proyecto al primer arranque.
+
+### Otros comandos
+
 ```bash
-npm run start:prod
+npm run build          # Compilar para producción
+npm run start:prod     # Ejecutar build compilado
+npm run test           # Unit tests
+npm run test:e2e       # Tests end-to-end
+npm run test:cov       # Cobertura
 ```
-
-### Pruebas
-```bash
-# Unit tests
-npm run test
-
-# E2E tests
-npm run test:e2e
-
-# Cobertura
-npm run test:cov
-```
-
-El servidor estará disponible en `http://localhost:3000`
 
 ---
 
-##  Arquitectura Interna
-
-### Flujo de Caché de Países
-
-```
-┌────────────────────────────────────────────────────┐
-│  TravelPlansService crea un plan de viaje         │
-└────────────────────────────────────────────────────┘
-                    │
-                    ▼
-    ┌──────────────────────────────────────┐
-    │  CountriesService.findEntityByCode() │
-    │         (Uso Interno)                │
-    └──────────────────────────────────────┘
-                    │
-        ┌───────────┴───────────┐
-        ▼                       ▼
-   ¿Existe en BD?          RestCountriesProvider
-   Local?                   (API externa)
-        │                       │
-       SÍ                      NO
-        │                       │
-        ├──────────────────────┤
-                    ▼
-            Guardar en BD Local
-                    │
-                    ▼
-      Validación exitosa
-      Plan de viaje creado
-```
-
-**IMPORTANTE:** El CountriesModule es **100% interno**. No expone endpoints públicos HTTP. Solo es utilizado por TravelPlansModule para validar países al crear planes de viaje.
+## Arquitectura interna
 
 ### Módulos
 
-**Countries Module:**
-- `CountriesService`: Lógica de búsqueda y caché
-- `CountriesController`: Endpoints de países
-- `RestCountriesProvider`: Cliente HTTP a API externa
-- `Country Entity`: Modelo de BD
+```
+AppModule
+├── CountriesModule      ← interno, sin endpoints públicos
+│   ├── CountriesService
+│   └── RestCountriesProvider
+└── TravelPlansModule    ← único módulo con endpoints HTTP
+    ├── TravelPlansController
+    └── TravelPlansService  →  inyecta CountriesService
+```
 
-**Travel Plans Module:**
-- `TravelPlansService`: Crear y consultar planes
-- `TravelPlansController`: Endpoints de planes
-- `TravelPlan Entity`: Modelo con relación a Country
+**CountriesModule** está configurado como módulo de infraestructura puro: no registra ningún controlador y no expone rutas HTTP. Solo exporta `CountriesService` para uso interno de `TravelPlansModule`.
 
-**Common:**
-- `AdminGuard`: Valida token `Authorization: web123`
-- `LoggerMiddleware`: Log de todas las peticiones
+**TravelPlansModule** importa `CountriesModule` y usa `CountriesService` para validar y cachear países antes de persistir un plan de viaje.
+
+### Validación global
+
+`ValidationPipe` está configurado globalmente en `main.ts` con:
+
+- `whitelist: true` — descarta propiedades del body que no estén declaradas en el DTO.
+- `forbidNonWhitelisted: true` — retorna 400 si el body contiene propiedades desconocidas.
+- `transform: true` — convierte tipos automáticamente (e.g., `countryCode` se normaliza a mayúsculas vía `@Transform` en el DTO).
+
+### Flujo de caché de países
+
+Cuando `TravelPlansService` recibe una solicitud de creación, delega la resolución del país a `CountriesService.findEntityByCode()`, que sigue este flujo:
+
+```
+POST /travel-plans
+        │
+        ▼
+TravelPlansService.create()
+        │
+        ▼
+CountriesService.findEntityByCode(countryCode)
+        │
+        ▼
+  ┌─────────────────────────────────────────┐
+  │  ¿Existe en BD local y caché < 7 días? │
+  └─────────────────────────────────────────┘
+        │                   │
+       SÍ                   NO
+        │                   │
+        │          ┌────────────────────────┐
+        │          │ ¿Hay solicitud en      │
+        │          │  vuelo para ese código?│
+        │          └────────────────────────┘
+        │                   │          │
+        │                  SÍ          NO
+        │                   │          │
+        │            espera la   llama a REST
+        │            promesa    Countries API
+        │            existente       │
+        │                   │        ▼
+        │                   │   guarda/actualiza
+        │                   │   en BD local
+        │                   │        │
+        └───────────────────┴────────┘
+                            │
+                            ▼
+                  Plan de viaje persistido
+```
+
+**Detalles clave:**
+- TTL de caché: **7 días**. Si el registro en BD tiene más de 7 días, se descarta y se consulta la API externa.
+- **Deduplicación in-flight**: si dos solicitudes simultáneas piden el mismo código de país, solo se hace una llamada a la API. La segunda espera la promesa de la primera.
+- El provider aplica un timeout de **10 segundos** a la API externa.
 
 ---
 
-## Endpoints Públicos
+## Endpoints
 
-**NOTA:** El único módulo que expone endpoints públicos es **TravelPlansModule**. El CountriesModule es 100% interno.
+El único módulo con API pública es `TravelPlansModule`.
 
-### Travel Plans (Interfaz Pública)
+| Método   | Endpoint              | Descripción                   | Auth |
+|----------|-----------------------|-------------------------------|------|
+| `POST`   | `/travel-plans`       | Crear un plan de viaje        | No   |
+| `GET`    | `/travel-plans`       | Listar todos los planes       | No   |
+| `GET`    | `/travel-plans/:id`   | Obtener un plan por ID        | No   |
+| `DELETE` | `/travel-plans/:id`   | Eliminar un plan por ID       | No   |
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | `/travel-plans` | Crear nuevo plan de viaje |
-| GET | `/travel-plans` | Listar todos los planes |
-| GET | `/travel-plans/:id` | Obtener plan específico |
-| DELETE | `/travel-plans/:id` | Eliminar un plan de viaje |
+> El `AdminGuard` existe y está disponible para proteger rutas con `@UseGuards(AdminGuard)`. Requiere el header `Authorization: Bearer <ADMIN_TOKEN>` donde el valor de `ADMIN_TOKEN` se lee de la variable de entorno del mismo nombre.
 
 ---
 
-## Ejemplos de Peticiones en Postman
+## Ejemplos de peticiones en Postman
 
-### 1. Crear Plan de Viaje
+### Crear un plan de viaje
 
-**Petición:**
+**Request**
 ```
 POST http://localhost:3000/travel-plans
 Content-Type: application/json
 ```
 
-**Body (JSON):**
 ```json
 {
-  "countryCode": "USA",
-  "title": "Viaje a Nueva York",
-  "startDate": "2024-06-15",
-  "endDate": "2024-06-25",
-  "notes": "Visitar Times Square, Central Park y el Empire State Building"
+  "countryCode": "col",
+  "title": "Semana en Cartagena",
+  "startDate": "2025-07-10",
+  "endDate": "2025-07-17",
+  "notes": "Ciudad amurallada, Islas del Rosario, Getsemaní"
 }
 ```
 
-**Respuesta (201 Created):**
+> `countryCode` acepta minúsculas — el DTO lo normaliza a `"COL"` automáticamente.
+
+**Response 201 Created**
 ```json
 {
   "id": 1,
-  "countryCode": "USA",
-  "title": "Viaje a Nueva York",
-  "startDate": "2024-06-15",
-  "endDate": "2024-06-25",
-  "notes": "Visitar Times Square, Central Park y el Empire State Building"
+  "countryCode": "COL",
+  "title": "Semana en Cartagena",
+  "startDate": "2025-07-10",
+  "endDate": "2025-07-17",
+  "notes": "Ciudad amurallada, Islas del Rosario, Getsemaní",
+  "createdAt": "2025-07-01T14:30:00.000Z"
 }
 ```
 
-**Errores Comunes:**
+---
+
+### Errores al crear — validación de entrada
+
+**País inválido (código no existe en REST Countries)**
+```
+POST http://localhost:3000/travel-plans
+```
 ```json
-// País no existe
+{ "countryCode": "XYZ", "title": "Test", "startDate": "2025-08-01", "endDate": "2025-08-10" }
+```
+```json
 {
   "message": "Country with code XYZ not found or API invalid.",
   "error": "Bad Request",
   "statusCode": 400
 }
+```
 
-// Validación falló (fechas inválidas, campos faltantes)
+**`endDate` anterior a `startDate`**
+```json
+{ "countryCode": "USA", "title": "Test", "startDate": "2025-08-10", "endDate": "2025-08-01" }
+```
+```json
 {
-  "message": ["countryCode must be a string", "startDate must be a valid ISO 8601 date string"],
+  "message": ["endDate must be after startDate"],
   "error": "Bad Request",
   "statusCode": 400
 }
 ```
 
----
-
-### 2. Listar Todos los Planes de Viaje
-
-**Petición:**
-```
-GET http://localhost:3000/travel-plans
-```
-
-**Respuesta (200 OK):**
+**Campo desconocido en el body (whitelist activo)**
 ```json
-[
-  {
-    "id": 1,
-    "countryCode": "USA",
-    "title": "Viaje a Nueva York",
-    "startDate": "2024-06-15",
-    "endDate": "2024-06-25",
-    "notes": "Visitar Times Square, Central Park y el Empire State Building"
-  }
-]
+{ "countryCode": "USA", "title": "Test", "startDate": "2025-08-01", "endDate": "2025-08-10", "precio": 500 }
 ```
-
----
-
-### 3. Obtener Plan Específico
-
-**Petición:**
-```
-GET http://localhost:3000/travel-plans/1
-```
-
-**Respuesta (200 OK):**
 ```json
 {
-  "id": 1,
-  "countryCode": "USA",
-  "title": "Viaje a Nueva York",
-  "startDate": "2024-06-15",
-  "endDate": "2024-06-25",
-  "notes": "Visitar Times Square, Central Park y el Empire State Building"
-}
-```
-
----
-
-### 4. Eliminar Plan de Viaje
-
-**Petición:**
-```
-DELETE http://localhost:3000/travel-plans/1
-```
-
-**Respuesta (204 No Content):**
-```
-(sin contenido - solo status 204)
-```
-
-**Si el plan no existe:**
-```json
-{
-  "message": "Travel plan with id 1 not found.",
+  "message": ["property precio should not exist"],
   "error": "Bad Request",
   "statusCode": 400
 }
 ```
 
----
-
-## Validación de Datos
-
-El endpoint `POST /travel-plans` valida automáticamente:
-
-- **countryCode**: Debe ser exactamente 3 caracteres (código Alpha-3)
-- **title**: Debe ser un string no vacío
-- **startDate**: Debe ser una fecha válida en formato ISO 8601
-- **endDate**: Debe ser una fecha válida en formato ISO 8601
-- **notes**: Opcional (puede omitirse)
-
-**Ejemplo de validación fallida:**
+**Campos faltantes o con formato incorrecto**
+```json
+{ "countryCode": "US", "title": "", "startDate": "10-08-2025" }
+```
 ```json
 {
   "message": [
-    "countryCode must be a string",
-    "countryCode must be 3 characters long",
-    "startDate must be a valid ISO 8601 date string"
+    "countryCode must be longer than or equal to 3 and shorter than or equal to 3 characters",
+    "title should not be empty",
+    "startDate must be a valid ISO 8601 date string",
+    "endDate must be a valid ISO 8601 date string"
   ],
   "error": "Bad Request",
   "statusCode": 400
@@ -275,99 +229,151 @@ El endpoint `POST /travel-plans` valida automáticamente:
 
 ---
 
-## Módulos Internos (Sin API Pública)
+### Listar todos los planes
 
-### CountriesModule
+**Request**
+```
+GET http://localhost:3000/travel-plans
+```
 
-**Responsabilidades:**
-- Gestionar caché de países en BD local
-- Obtener países desde API externa (REST Countries) solo si no existen localmente
-- Proporcionar servicio interno para validar países
-
-**Característica clave - NO EXPONE ENDPOINTS HTTP**
-- Solo es utilizado por `TravelPlansModule`
-- La lógica de caché es transparente para el usuario
-- Reduce llamadas a API externa automáticamente
+**Response 200 OK**
+```json
+[
+  {
+    "id": 1,
+    "countryCode": "COL",
+    "title": "Semana en Cartagena",
+    "startDate": "2025-07-10",
+    "endDate": "2025-07-17",
+    "notes": "Ciudad amurallada, Islas del Rosario, Getsemaní",
+    "createdAt": "2025-07-01T14:30:00.000Z"
+  },
+  {
+    "id": 2,
+    "countryCode": "FRA",
+    "title": "París en otoño",
+    "startDate": "2025-10-05",
+    "endDate": "2025-10-12",
+    "notes": null,
+    "createdAt": "2025-07-02T09:15:00.000Z"
+  }
+]
+```
 
 ---
 
-## Estructura de Carpetas
+### Obtener un plan por ID
+
+**Request**
+```
+GET http://localhost:3000/travel-plans/1
+```
+
+**Response 200 OK**
+```json
+{
+  "id": 1,
+  "countryCode": "COL",
+  "title": "Semana en Cartagena",
+  "startDate": "2025-07-10",
+  "endDate": "2025-07-17",
+  "notes": "Ciudad amurallada, Islas del Rosario, Getsemaní",
+  "createdAt": "2025-07-01T14:30:00.000Z"
+}
+```
+
+**ID no encontrado — 404**
+```
+GET http://localhost:3000/travel-plans/99
+```
+```json
+{
+  "message": "Travel plan with id 99 not found.",
+  "error": "Not Found",
+  "statusCode": 404
+}
+```
+
+**ID no numérico — 400**
+```
+GET http://localhost:3000/travel-plans/abc
+```
+```json
+{
+  "message": "Validation failed (numeric string is expected)",
+  "error": "Bad Request",
+  "statusCode": 400
+}
+```
+
+---
+
+### Eliminar un plan
+
+**Request**
+```
+DELETE http://localhost:3000/travel-plans/1
+```
+
+**Response 204 No Content** *(sin cuerpo)*
+
+**Plan no encontrado — 404**
+```
+DELETE http://localhost:3000/travel-plans/99
+```
+```json
+{
+  "message": "Travel plan with id 99 not found.",
+  "error": "Not Found",
+  "statusCode": 404
+}
+```
+
+---
+
+## Reglas de validación del DTO
+
+| Campo         | Tipo     | Reglas                                                    |
+|---------------|----------|-----------------------------------------------------------|
+| `countryCode` | `string` | Exactamente 3 chars, normalizado a mayúsculas, requerido  |
+| `title`       | `string` | No vacío, máximo 200 caracteres, requerido                |
+| `startDate`   | `string` | Formato ISO 8601 (`YYYY-MM-DD`), requerido                |
+| `endDate`     | `string` | Formato ISO 8601, debe ser posterior a `startDate`        |
+| `notes`       | `string` | Opcional, máximo 1000 caracteres                          |
+
+---
+
+## Estructura del proyecto
 
 ```
 src/
-├── app.controller.ts
-├── app.module.ts
-├── app.service.ts
-├── main.ts
+├── main.ts                          ← ValidationPipe global
+├── app.module.ts                    ← TypeORM (SQLite) + middlewares
 ├── common/
-│   ├── guards/
-│   │   └── admin.guard.ts
-│   └── middleware/
-│       └── logger.middleware.ts
+│   ├── guards/admin.guard.ts        ← Bearer token desde ADMIN_TOKEN env
+│   └── middleware/logger.middleware.ts
 ├── countries/
-│   ├── countries.controller.ts (No se registra - módulo interno)
-│   ├── countries.module.ts
-│   ├── countries.service.ts
-│   ├── entities/
-│   │   └── country.entity.ts
-│   └── providers/
-│       └── rest-countries.provider.ts
+│   ├── countries.module.ts          ← sin controller registrado
+│   ├── countries.service.ts         ← caché + deduplicación in-flight
+│   ├── entities/country.entity.ts
+│   └── providers/rest-countries.provider.ts
 └── travel-plans/
-    ├── travel-plans.controller.ts
-    ├── travel-plans.module.ts
+    ├── travel-plans.controller.ts   ← ParseIntPipe en :id
     ├── travel-plans.service.ts
-    ├── dto/
-    │   └── create-travel-plan.dto.ts
-    └── entities/
-        └── travel-plan.entity.ts
+    ├── dto/create-travel-plan.dto.ts
+    └── entities/travel-plan.entity.ts
 ```
-
----
-
-## Base de Datos
-
-Se usa **SQLite** con **TypeORM**. La BD se genera automáticamente en `travel.db`.
-
-**Tablas:**
-- `country`: Caché de países
-- `travel_plan`: Planes de viaje
 
 ---
 
 ## Tecnologías
 
-- **NestJS**: Framework backend
-- **TypeORM**: ORM para BD
-- **SQLite**: Base de datos local
-- **Axios**: Cliente HTTP
-- **Class Validator**: Validaciones de DTOs
-- **TypeScript**: Lenguaje
-
----
-
-## Troubleshooting
-
-**Error: "Country with code [CODE] not found or API invalid"**
-- El país no existe en la API de REST Countries
-- Verifica que usas el código ISO 3166-1 alpha-3 correcto (3 letras)
-- Ej: `USA`, `FRA`, `GBR`, `MEX`, `COL`
-- [Lista completa de códigos](https://restcountries.com/v3.1/all)
-
-**Error: "Travel plan with id X not found" al eliminar**
-- El plan con ese ID no existe
-- Verifica el ID con `GET /travel-plans`
-
-**Error de validación al crear plan**
-- Verifica que todas las fechas estén en formato ISO 8601: `YYYY-MM-DD`
-- Verifica que countryCode tenga exactamente 3 caracteres
-- Verifica que title no sea vacío
-
-**No se crean planes (sin error)**
-- Asegúrate de que el servidor está corriendo: `npm run start:dev`
-- Verifica que la BD `travel.db` existe en la raíz del proyecto
-- Revisa los logs del servidor
-
-**La API externa (REST Countries) está lenta o no responde**
-- CountriesService intenta caché local primero
-- Si la API falla, se obtiene el país de caché (si existe)
-- Espera unos minutos y reintenta
+| Tecnología       | Uso                          |
+|------------------|------------------------------|
+| NestJS 11        | Framework                    |
+| TypeORM 0.3      | ORM                          |
+| SQLite           | Base de datos local          |
+| class-validator  | Validación de DTOs           |
+| class-transformer| Transformación de entradas   |
+| Axios / rxjs     | Cliente HTTP con timeout     |
+| TypeScript 5     | Lenguaje                     |

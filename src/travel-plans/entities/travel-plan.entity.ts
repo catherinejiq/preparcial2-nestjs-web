@@ -1,25 +1,25 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
 
-@Entity()
+@Entity('travel_plan')
 export class TravelPlan {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
-  @Column()
-  countryCode: string; 
+  @Column({ length: 3 })
+  countryCode: string;
 
-  @Column()
-  title: string; 
+  @Column({ length: 200 })
+  title: string;
 
-  @Column()
-  startDate: Date; 
+  @Column({ type: 'date' })
+  startDate: string;
 
-  @Column()
-  endDate: Date; 
+  @Column({ type: 'date' })
+  endDate: string;
 
-  @Column({ nullable: true })
-  notes: string; 
+  @Column({ length: 1000, nullable: true })
+  notes: string;
 
   @CreateDateColumn()
-  createdAt: Date; 
+  createdAt: Date;
 }

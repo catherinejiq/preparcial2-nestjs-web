@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TravelPlan } from './entities/travel-plan.entity';
@@ -10,7 +10,7 @@ export class TravelPlansService {
   constructor(
     @InjectRepository(TravelPlan)
     private travelPlansRepository: Repository<TravelPlan>,
-    private countriesService: CountriesService, // [cite: 89]
+    private countriesService: CountriesService,
   ) {}
 
   async create(createTravelPlanDto: CreateTravelPlanDto) {
@@ -35,13 +35,17 @@ export class TravelPlansService {
   }
 
   async findOne(id: number) {
-    return this.travelPlansRepository.findOneBy({ id });
+    const plan = await this.travelPlansRepository.findOneBy({ id });
+    if (!plan) {
+      throw new NotFoundException(`Travel plan with id ${id} not found.`);
+    }
+    return plan;
   }
 
   async remove(id: number): Promise<void> {
     const plan = await this.travelPlansRepository.findOneBy({ id });
     if (!plan) {
-      throw new BadRequestException(`Travel plan with id ${id} not found.`);
+      throw new NotFoundException(`Travel plan with id ${id} not found.`);
     }
     await this.travelPlansRepository.remove(plan);
   }

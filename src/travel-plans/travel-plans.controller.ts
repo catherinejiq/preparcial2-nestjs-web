@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe, Delete, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, HttpCode, HttpStatus, ParseIntPipe } from '@nestjs/common';
 import { TravelPlansService } from './travel-plans.service';
 import { CreateTravelPlanDto } from './dto/create-travel-plan.dto';
 
@@ -7,7 +7,6 @@ export class TravelPlansController {
   constructor(private readonly travelPlansService: TravelPlansService) {}
 
   @Post()
-  @UsePipes(new ValidationPipe()) // Activa validaciones del DTO 
   create(@Body() createTravelPlanDto: CreateTravelPlanDto) {
     return this.travelPlansService.create(createTravelPlanDto);
   }
@@ -18,13 +17,13 @@ export class TravelPlansController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.travelPlansService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.travelPlansService.findOne(id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string) {
-    await this.travelPlansService.remove(+id);
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    await this.travelPlansService.remove(id);
   }
 }

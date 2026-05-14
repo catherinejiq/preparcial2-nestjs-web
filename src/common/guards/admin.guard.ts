@@ -1,17 +1,23 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Observable } from 'rxjs';
 
 @Injectable()
 export class AdminGuard implements CanActivate {
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
+  private readonly validToken = process.env.ADMIN_TOKEN;
+
+  canActivate(context: ExecutionContext): boolean {
+    if (!this.validToken) {
+      throw new UnauthorizedException('Admin access not configured');
+    }
+
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers['authorization'];
+    const authHeader: string | undefined = request.headers['authorization'];
 
-    const VALID_TOKEN = 'web123';
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Invalid or missing Authorization token');
+    }
 
-    if (!authHeader || authHeader !== VALID_TOKEN) {
+    const token = authHeader.slice(7);
+    if (token !== this.validToken) {
       throw new UnauthorizedException('Invalid or missing Authorization token');
     }
 

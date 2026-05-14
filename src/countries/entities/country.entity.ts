@@ -1,29 +1,31 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
-@Entity()
+@Entity('country')
+@Index('IDX_country_code', ['code'])
+@Index('IDX_country_code_updated', ['code', 'updatedAt'])
 export class Country {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ unique: true })
+  @Column({ unique: true, length: 3 })
   code: string; 
 
-  @Column()
+  @Column({ length: 100 })
   name: string;
 
-  @Column()
+  @Column({ length: 50 })
   region: string;
 
-  @Column()
+  @Column({ length: 50 })
   subregion: string;
 
-  @Column()
+  @Column({ length: 100 })
   capital: string;
 
-  @Column()
+  @Column({ type: 'int', unsigned: true })
   population: number;
 
-  @Column()
+  @Column({ type: 'text' })
   flagUrl: string;
 
   @CreateDateColumn()
