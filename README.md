@@ -4,16 +4,16 @@ API REST desarrollada con **NestJS** para gestionar planes de viaje con integrac
 
 ## Características
 
-- 🌍 **Integración con REST Countries API**: Obtiene datos de países en tiempo real
-- 💾 **Caché Local**: Almacena países en BD local para evitar llamadas repetidas
-- 🛡️ **Autenticación**: Guard de administrador para operaciones sensibles
-- ✈️ **Gestión de Planes de Viaje**: CRUD completo de planes
-- 📋 **Validaciones**: DTOs con validaciones automáticas
-- 📊 **Base de Datos**: SQLite con TypeORM
+- **Integración con REST Countries API**: Obtiene datos de países en tiempo real
+- **Caché Local**: Almacena países en BD local para evitar llamadas repetidas
+- **Autenticación**: Guard de administrador para operaciones sensibles
+- **Gestión de Planes de Viaje**: CRUD completo de planes
+- **Validaciones**: DTOs con validaciones automáticas
+- **Base de Datos**: SQLite con TypeORM
 
 ---
 
-## 📋 Requisitos Previos
+## Requisitos Previos
 
 - Node.js 16+ 
 - npm o yarn
@@ -21,7 +21,7 @@ API REST desarrollada con **NestJS** para gestionar planes de viaje con integrac
 
 ---
 
-## ⚙️ Instalación
+## Instalación
 
 1. **Clonar el repositorio:**
 ```bash
@@ -36,7 +36,7 @@ npm install
 
 ---
 
-## 🚀 Ejecución del Proyecto
+## Ejecución del Proyecto
 
 ### Modo Desarrollo (con auto-reload)
 ```bash
@@ -64,7 +64,7 @@ El servidor estará disponible en `http://localhost:3000`
 
 ---
 
-## 🏗️ Arquitectura Interna
+##  Arquitectura Interna
 
 ### Flujo de Caché de Países
 
@@ -91,8 +91,8 @@ El servidor estará disponible en `http://localhost:3000`
             Guardar en BD Local
                     │
                     ▼
-      ✅ Validación exitosa
-      ✅ Plan de viaje creado
+      Validación exitosa
+      Plan de viaje creado
 ```
 
 **IMPORTANTE:** El CountriesModule es **100% interno**. No expone endpoints públicos HTTP. Solo es utilizado por TravelPlansModule para validar países al crear planes de viaje.
@@ -116,7 +116,7 @@ El servidor estará disponible en `http://localhost:3000`
 
 ---
 
-## 📡 Endpoints Públicos
+## Endpoints Públicos
 
 **NOTA:** El único módulo que expone endpoints públicos es **TravelPlansModule**. El CountriesModule es 100% interno.
 
@@ -131,9 +131,9 @@ El servidor estará disponible en `http://localhost:3000`
 
 ---
 
-## 📝 Ejemplos de Peticiones en Postman
+## Ejemplos de Peticiones en Postman
 
-### 1️⃣ Crear Plan de Viaje
+### 1. Crear Plan de Viaje
 
 **Petición:**
 ```
@@ -183,7 +183,7 @@ Content-Type: application/json
 
 ---
 
-### 2️⃣ Listar Todos los Planes de Viaje
+### 2. Listar Todos los Planes de Viaje
 
 **Petición:**
 ```
@@ -200,21 +200,13 @@ GET http://localhost:3000/travel-plans
     "startDate": "2024-06-15",
     "endDate": "2024-06-25",
     "notes": "Visitar Times Square, Central Park y el Empire State Building"
-  },
-  {
-    "id": 2,
-    "countryCode": "FRA",
-    "title": "París Romántico",
-    "startDate": "2024-07-01",
-    "endDate": "2024-07-10",
-    "notes": null
   }
 ]
 ```
 
 ---
 
-### 3️⃣ Obtener Plan Específico
+### 3. Obtener Plan Específico
 
 **Petición:**
 ```
@@ -235,7 +227,7 @@ GET http://localhost:3000/travel-plans/1
 
 ---
 
-### 4️⃣ Eliminar Plan de Viaje
+### 4. Eliminar Plan de Viaje
 
 **Petición:**
 ```
@@ -258,7 +250,7 @@ DELETE http://localhost:3000/travel-plans/1
 
 ---
 
-## 🛠️ Validación de Datos
+## Validación de Datos
 
 El endpoint `POST /travel-plans` valida automáticamente:
 
@@ -283,7 +275,7 @@ El endpoint `POST /travel-plans` valida automáticamente:
 
 ---
 
-## 🔒 Módulos Internos (Sin API Pública)
+## Módulos Internos (Sin API Pública)
 
 ### CountriesModule
 
@@ -299,7 +291,7 @@ El endpoint `POST /travel-plans` valida automáticamente:
 
 ---
 
-## 📦 Estructura de Carpetas
+## Estructura de Carpetas
 
 ```
 src/
@@ -313,7 +305,7 @@ src/
 │   └── middleware/
 │       └── logger.middleware.ts
 ├── countries/
-│   ├── countries.controller.ts (⚠️ No se registra - módulo interno)
+│   ├── countries.controller.ts (No se registra - módulo interno)
 │   ├── countries.module.ts
 │   ├── countries.service.ts
 │   ├── entities/
@@ -332,7 +324,7 @@ src/
 
 ---
 
-## 🗄️ Base de Datos
+## Base de Datos
 
 Se usa **SQLite** con **TypeORM**. La BD se genera automáticamente en `travel.db`.
 
@@ -342,7 +334,7 @@ Se usa **SQLite** con **TypeORM**. La BD se genera automáticamente en `travel.d
 
 ---
 
-## 📚 Tecnologías
+## Tecnologías
 
 - **NestJS**: Framework backend
 - **TypeORM**: ORM para BD
@@ -353,7 +345,7 @@ Se usa **SQLite** con **TypeORM**. La BD se genera automáticamente en `travel.d
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 **Error: "Country with code [CODE] not found or API invalid"**
 - El país no existe en la API de REST Countries
@@ -379,27 +371,3 @@ Se usa **SQLite** con **TypeORM**. La BD se genera automáticamente en `travel.d
 - CountriesService intenta caché local primero
 - Si la API falla, se obtiene el país de caché (si existe)
 - Espera unos minutos y reintenta
-
----
-
-## 📄 Licencia
-
-MIT
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
