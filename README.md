@@ -1,103 +1,408 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Travel Plans API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST desarrollada con **NestJS** para gestionar planes de viaje con integración de datos de países desde una API externa con caché local.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Características
 
-## Description
+- 🌍 **Integración con REST Countries API**: Obtiene datos de países en tiempo real
+- 💾 **Caché Local**: Almacena países en BD local para evitar llamadas repetidas
+- 🛡️ **Autenticación**: Guard de administrador para operaciones sensibles
+- ✈️ **Gestión de Planes de Viaje**: CRUD completo de planes
+- 📋 **Validaciones**: DTOs con validaciones automáticas
+- 📊 **Base de Datos**: SQLite con TypeORM
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## 📋 Requisitos Previos
 
+- Node.js 16+ 
+- npm o yarn
+- Postman o similar para pruebas
+
+---
+
+## ⚙️ Instalación
+
+1. **Clonar el repositorio:**
 ```bash
-$ npm install
+git clone <repository-url>
+cd preparcial2-nestjs-web
 ```
 
-## Compile and run the project
-
+2. **Instalar dependencias:**
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Sincronizar Countries
+---
 
-Para cargar los países en la base de datos, ejecuta:
+## 🚀 Ejecución del Proyecto
 
+### Modo Desarrollo (con auto-reload)
 ```bash
+npm run start:dev
+```
+
+### Modo Producción
+```bash
+npm run start:prod
+```
+
+### Pruebas
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Cobertura
+npm run test:cov
+```
+
+El servidor estará disponible en `http://localhost:3000`
+
+---
+
+## 🏗️ Arquitectura Interna
+
+### Flujo de Caché de Países
+
+```
+┌─────────────────────────────────────────────┐
+│  Cliente solicita GET /countries/:code      │
+└─────────────────────────────────────────────┘
+                    │
+                    ▼
+    ┌───────────────────────────────┐
+    │  CountriesService.findOneByCode()
+    └───────────────────────────────┘
+                    │
+        ┌───────────┴───────────┐
+        ▼                       ▼
+   ¿Existe en BD?          RestCountriesProvider
+   Local?                   (API externa)
+        │                       │
+       SÍ                      NO
+        │                       │
+        ├──────────────────────┤
+                    ▼
+            Guardar en BD Local
+                    │
+                    ▼
+         Retornar con source: 'local-cache'
+                 o 'external-api'
+```
+
+### Módulos
+
+**Countries Module:**
+- `CountriesService`: Lógica de búsqueda y caché
+- `CountriesController`: Endpoints de países
+- `RestCountriesProvider`: Cliente HTTP a API externa
+- `Country Entity`: Modelo de BD
+
+**Travel Plans Module:**
+- `TravelPlansService`: Crear y consultar planes
+- `TravelPlansController`: Endpoints de planes
+- `TravelPlan Entity`: Modelo con relación a Country
+
+**Common:**
+- `AdminGuard`: Valida token `Authorization: web123`
+- `LoggerMiddleware`: Log de todas las peticiones
+
+---
+
+## 📡 Endpoints
+
+### Countries
+
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| GET | `/countries` | Listar todos los países en caché | ❌ |
+| GET | `/countries/:code` | Obtener país específico (con caché) | ❌ |
+| POST | `/countries/sync` | Sincronizar 18 países comunes | ✅ |
+| DELETE | `/countries/:code` | Eliminar país del caché | ✅ |
+
+### Travel Plans
+
+| Método | Endpoint | Descripción | Auth |
+|--------|----------|-------------|------|
+| POST | `/travel-plans` | Crear nuevo plan de viaje | ❌ |
+| GET | `/travel-plans` | Listar todos los planes | ❌ |
+| GET | `/travel-plans/:id` | Obtener plan específico | ❌ |
+
+---
+
+## 📝 Ejemplos de Peticiones en Postman
+
+### 1️⃣ Sincronizar Countries (Datos iniciales)
+
+**Petición:**
+```
 POST http://localhost:3000/countries/sync
+Headers:
+  Authorization: web123
+  Content-Type: application/json
 ```
 
-**Headers requeridos:**
+**Respuesta (200 OK):**
+```json
+{
+  "message": "Sincronización completada",
+  "synced": 18,
+  "total": 18,
+  "countries": [
+    {
+      "code": "USA",
+      "name": "United States",
+      "region": "Americas",
+      "subregion": "North America",
+      "capital": "Washington, D.C.",
+      "population": 331002651,
+      "flagUrl": "https://flagcdn.com/us.svg"
+    },
+    // ... más países
+  ]
+}
+```
+
+---
+
+### 2️⃣ Crear Plan de Viaje
+
+**Petición:**
+```
+POST http://localhost:3000/travel-plans
+Content-Type: application/json
+```
+
+**Body (JSON):**
+```json
+{
+  "countryCode": "USA",
+  "title": "Viaje a Nueva York",
+  "startDate": "2024-06-15",
+  "endDate": "2024-06-25",
+  "notes": "Visitar Times Square, Central Park y el Empire State Building"
+}
+```
+
+**Respuesta (201 Created):**
+```json
+{
+  "id": 1,
+  "countryCode": "USA",
+  "title": "Viaje a Nueva York",
+  "startDate": "2024-06-15",
+  "endDate": "2024-06-25",
+  "notes": "Visitar Times Square, Central Park y el Empire State Building"
+}
+```
+
+**Errores Comunes:**
+```json
+// País no existe
+{
+  "message": "Country with code XYZ not found or API invalid.",
+  "error": "Bad Request",
+  "statusCode": 400
+}
+
+// Validación falló (fechas inválidas, campos faltantes)
+{
+  "message": ["countryCode must be a string", "startDate must be a valid ISO 8601 date string"],
+  "error": "Bad Request",
+  "statusCode": 400
+}
+```
+
+---
+
+### 3️⃣ Listar Todos los Planes de Viaje
+
+**Petición:**
+```
+GET http://localhost:3000/travel-plans
+```
+
+**Respuesta (200 OK):**
+```json
+[
+  {
+    "id": 1,
+    "countryCode": "USA",
+    "title": "Viaje a Nueva York",
+    "startDate": "2024-06-15",
+    "endDate": "2024-06-25",
+    "notes": "Visitar Times Square, Central Park y el Empire State Building"
+  },
+  {
+    "id": 2,
+    "countryCode": "FRA",
+    "title": "París Romántico",
+    "startDate": "2024-07-01",
+    "endDate": "2024-07-10",
+    "notes": null
+  }
+]
+```
+
+---
+
+### 4️⃣ Obtener Plan Específico
+
+**Petición:**
+```
+GET http://localhost:3000/travel-plans/1
+```
+
+**Respuesta (200 OK):**
+```json
+{
+  "id": 1,
+  "countryCode": "USA",
+  "title": "Viaje a Nueva York",
+  "startDate": "2024-06-15",
+  "endDate": "2024-06-25",
+  "notes": "Visitar Times Square, Central Park y el Empire State Building"
+}
+```
+
+---
+
+### 5️⃣ Consultar País (con Caché)
+
+**Primera llamada (desde API):**
+```
+GET http://localhost:3000/countries/fra
+```
+
+**Respuesta:**
+```json
+{
+  "code": "FRA",
+  "name": "France",
+  "region": "Europe",
+  "subregion": "Western Europe",
+  "capital": "Paris",
+  "population": 67750000,
+  "flagUrl": "https://flagcdn.com/fr.svg",
+  "source": "external-api"
+}
+```
+
+**Segunda llamada (desde caché local):**
+```json
+{
+  "code": "FRA",
+  "name": "France",
+  "region": "Europe",
+  "subregion": "Western Europe",
+  "capital": "Paris",
+  "population": 67750000,
+  "flagUrl": "https://flagcdn.com/fr.svg",
+  "source": "local-cache"
+}
+```
+
+---
+
+## 🔐 Autenticación
+
+Algunos endpoints requieren el token de administrador:
+
 ```
 Authorization: web123
 ```
 
-Esto cargará 18 países comunes desde la API de REST Countries en la base de datos local.
+**Endpoints protegidos:**
+- `POST /countries/sync`
+- `DELETE /countries/:code`
 
-**Alternativa:** Los países también se cargan automáticamente bajo demanda cuando consultas un país específico:
-```bash
-GET http://localhost:3000/countries/usa
+**Respuesta sin autenticación:**
+```json
+{
+  "message": "Invalid or missing Authorization token",
+  "error": "Unauthorized",
+  "statusCode": 401
+}
 ```
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ npm run test
+## 📦 Estructura de Carpetas
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```
+src/
+├── app.controller.ts
+├── app.module.ts
+├── app.service.ts
+├── main.ts
+├── common/
+│   ├── guards/
+│   │   └── admin.guard.ts
+│   └── middleware/
+│       └── logger.middleware.ts
+├── countries/
+│   ├── countries.controller.ts
+│   ├── countries.module.ts
+│   ├── countries.service.ts
+│   ├── entities/
+│   │   └── country.entity.ts
+│   └── providers/
+│       └── rest-countries.provider.ts
+└── travel-plans/
+    ├── travel-plans.controller.ts
+    ├── travel-plans.module.ts
+    ├── travel-plans.service.ts
+    ├── dto/
+    │   └── create-travel-plan.dto.ts
+    └── entities/
+        └── travel-plan.entity.ts
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## 🗄️ Base de Datos
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Se usa **SQLite** con **TypeORM**. La BD se genera automáticamente en `travel.db`.
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+**Tablas:**
+- `country`: Caché de países
+- `travel_plan`: Planes de viaje
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## 📚 Tecnologías
 
-Check out a few resources that may come in handy when working with NestJS:
+- **NestJS**: Framework backend
+- **TypeORM**: ORM para BD
+- **SQLite**: Base de datos local
+- **Axios**: Cliente HTTP
+- **Class Validator**: Validaciones de DTOs
+- **TypeScript**: Lenguaje
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+---
+
+## 🐛 Troubleshooting
+
+**Error: "Cannot POST /countries/sync"**
+- Asegúrate de que el servidor está corriendo con `npm run start:dev`
+- Verifica el header `Authorization: web123`
+
+**Error: "Country not found"**
+- El país debe estar en 3 letras (código ISO 3166-1 alpha-3)
+- Ej: `USA`, `FRA`, `GBR`
+
+**BD vacía en GET /countries**
+- Primero ejecuta `POST /countries/sync` con `Authorization: web123`
+
+---
+
+## 📄 Licencia
+
+MIT
 - Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
 - Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
 - To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
