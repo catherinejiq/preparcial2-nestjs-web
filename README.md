@@ -25,7 +25,7 @@ API REST desarrollada con **NestJS** para gestionar planes de viaje con integrac
 
 1. **Clonar el repositorio:**
 ```bash
-git clone <repository-url>
+git clone https://github.com/catherinejiq/preparcial2-nestjs-web.git
 cd preparcial2-nestjs-web
 ```
 
