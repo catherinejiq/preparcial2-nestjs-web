@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UsePipes, ValidationPipe, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { TravelPlansService } from './travel-plans.service';
 import { CreateTravelPlanDto } from './dto/create-travel-plan.dto';
 
@@ -20,5 +20,11 @@ export class TravelPlansController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.travelPlansService.findOne(+id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string) {
+    await this.travelPlansService.remove(+id);
   }
 }

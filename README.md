@@ -69,14 +69,15 @@ El servidor estará disponible en `http://localhost:3000`
 ### Flujo de Caché de Países
 
 ```
-┌─────────────────────────────────────────────┐
-│  Cliente solicita GET /countries/:code      │
-└─────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  TravelPlansService crea un plan de viaje         │
+└────────────────────────────────────────────────────┘
                     │
                     ▼
-    ┌───────────────────────────────┐
-    │  CountriesService.findOneByCode()
-    └───────────────────────────────┘
+    ┌──────────────────────────────────────┐
+    │  CountriesService.findEntityByCode() │
+    │         (Uso Interno)                │
+    └──────────────────────────────────────┘
                     │
         ┌───────────┴───────────┐
         ▼                       ▼
@@ -90,9 +91,11 @@ El servidor estará disponible en `http://localhost:3000`
             Guardar en BD Local
                     │
                     ▼
-         Retornar con source: 'local-cache'
-                 o 'external-api'
+      ✅ Validación exitosa
+      ✅ Plan de viaje creado
 ```
+
+**IMPORTANTE:** El CountriesModule es **100% interno**. No expone endpoints públicos HTTP. Solo es utilizado por TravelPlansModule para validar países al crear planes de viaje.
 
 ### Módulos
 
@@ -113,63 +116,24 @@ El servidor estará disponible en `http://localhost:3000`
 
 ---
 
-## 📡 Endpoints
+## 📡 Endpoints Públicos
 
-### Countries
+**NOTA:** El único módulo que expone endpoints públicos es **TravelPlansModule**. El CountriesModule es 100% interno.
 
-| Método | Endpoint | Descripción | Auth |
-|--------|----------|-------------|------|
-| GET | `/countries` | Listar todos los países en caché | ❌ |
-| GET | `/countries/:code` | Obtener país específico (con caché) | ❌ |
-| POST | `/countries/sync` | Sincronizar 18 países comunes | ✅ |
-| DELETE | `/countries/:code` | Eliminar país del caché | ✅ |
+### Travel Plans (Interfaz Pública)
 
-### Travel Plans
-
-| Método | Endpoint | Descripción | Auth |
-|--------|----------|-------------|------|
-| POST | `/travel-plans` | Crear nuevo plan de viaje | ❌ |
-| GET | `/travel-plans` | Listar todos los planes | ❌ |
-| GET | `/travel-plans/:id` | Obtener plan específico | ❌ |
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/travel-plans` | Crear nuevo plan de viaje |
+| GET | `/travel-plans` | Listar todos los planes |
+| GET | `/travel-plans/:id` | Obtener plan específico |
+| DELETE | `/travel-plans/:id` | Eliminar un plan de viaje |
 
 ---
 
 ## 📝 Ejemplos de Peticiones en Postman
 
-### 1️⃣ Sincronizar Countries (Datos iniciales)
-
-**Petición:**
-```
-POST http://localhost:3000/countries/sync
-Headers:
-  Authorization: web123
-  Content-Type: application/json
-```
-
-**Respuesta (200 OK):**
-```json
-{
-  "message": "Sincronización completada",
-  "synced": 18,
-  "total": 18,
-  "countries": [
-    {
-      "code": "USA",
-      "name": "United States",
-      "region": "Americas",
-      "subregion": "North America",
-      "capital": "Washington, D.C.",
-      "population": 331002651,
-      "flagUrl": "https://flagcdn.com/us.svg"
-    },
-    // ... más países
-  ]
-}
-```
-
----
-
-### 2️⃣ Crear Plan de Viaje
+### 1️⃣ Crear Plan de Viaje
 
 **Petición:**
 ```
@@ -219,7 +183,7 @@ Content-Type: application/json
 
 ---
 
-### 3️⃣ Listar Todos los Planes de Viaje
+### 2️⃣ Listar Todos los Planes de Viaje
 
 **Petición:**
 ```
@@ -250,7 +214,7 @@ GET http://localhost:3000/travel-plans
 
 ---
 
-### 4️⃣ Obtener Plan Específico
+### 3️⃣ Obtener Plan Específico
 
 **Petición:**
 ```
@@ -271,63 +235,67 @@ GET http://localhost:3000/travel-plans/1
 
 ---
 
-### 5️⃣ Consultar País (con Caché)
+### 4️⃣ Eliminar Plan de Viaje
 
-**Primera llamada (desde API):**
+**Petición:**
 ```
-GET http://localhost:3000/countries/fra
+DELETE http://localhost:3000/travel-plans/1
 ```
 
-**Respuesta:**
+**Respuesta (204 No Content):**
+```
+(sin contenido - solo status 204)
+```
+
+**Si el plan no existe:**
 ```json
 {
-  "code": "FRA",
-  "name": "France",
-  "region": "Europe",
-  "subregion": "Western Europe",
-  "capital": "Paris",
-  "population": 67750000,
-  "flagUrl": "https://flagcdn.com/fr.svg",
-  "source": "external-api"
-}
-```
-
-**Segunda llamada (desde caché local):**
-```json
-{
-  "code": "FRA",
-  "name": "France",
-  "region": "Europe",
-  "subregion": "Western Europe",
-  "capital": "Paris",
-  "population": 67750000,
-  "flagUrl": "https://flagcdn.com/fr.svg",
-  "source": "local-cache"
+  "message": "Travel plan with id 1 not found.",
+  "error": "Bad Request",
+  "statusCode": 400
 }
 ```
 
 ---
 
-## 🔐 Autenticación
+## 🛠️ Validación de Datos
 
-Algunos endpoints requieren el token de administrador:
+El endpoint `POST /travel-plans` valida automáticamente:
 
-```
-Authorization: web123
-```
+- **countryCode**: Debe ser exactamente 3 caracteres (código Alpha-3)
+- **title**: Debe ser un string no vacío
+- **startDate**: Debe ser una fecha válida en formato ISO 8601
+- **endDate**: Debe ser una fecha válida en formato ISO 8601
+- **notes**: Opcional (puede omitirse)
 
-**Endpoints protegidos:**
-- `POST /countries/sync`
-- `DELETE /countries/:code`
-
-**Respuesta sin autenticación:**
+**Ejemplo de validación fallida:**
 ```json
 {
-  "message": "Invalid or missing Authorization token",
-  "error": "Unauthorized",
-  "statusCode": 401
+  "message": [
+    "countryCode must be a string",
+    "countryCode must be 3 characters long",
+    "startDate must be a valid ISO 8601 date string"
+  ],
+  "error": "Bad Request",
+  "statusCode": 400
 }
 ```
+
+---
+
+## 🔒 Módulos Internos (Sin API Pública)
+
+### CountriesModule
+
+**Responsabilidades:**
+- Gestionar caché de países en BD local
+- Obtener países desde API externa (REST Countries) solo si no existen localmente
+- Proporcionar servicio interno para validar países
+
+**Característica clave - NO EXPONE ENDPOINTS HTTP**
+- Solo es utilizado por `TravelPlansModule`
+- La lógica de caché es transparente para el usuario
+- Reduce llamadas a API externa automáticamente
 
 ---
 
@@ -345,7 +313,7 @@ src/
 │   └── middleware/
 │       └── logger.middleware.ts
 ├── countries/
-│   ├── countries.controller.ts
+│   ├── countries.controller.ts (⚠️ No se registra - módulo interno)
 │   ├── countries.module.ts
 │   ├── countries.service.ts
 │   ├── entities/
@@ -387,16 +355,30 @@ Se usa **SQLite** con **TypeORM**. La BD se genera automáticamente en `travel.d
 
 ## 🐛 Troubleshooting
 
-**Error: "Cannot POST /countries/sync"**
-- Asegúrate de que el servidor está corriendo con `npm run start:dev`
-- Verifica el header `Authorization: web123`
+**Error: "Country with code [CODE] not found or API invalid"**
+- El país no existe en la API de REST Countries
+- Verifica que usas el código ISO 3166-1 alpha-3 correcto (3 letras)
+- Ej: `USA`, `FRA`, `GBR`, `MEX`, `COL`
+- [Lista completa de códigos](https://restcountries.com/v3.1/all)
 
-**Error: "Country not found"**
-- El país debe estar en 3 letras (código ISO 3166-1 alpha-3)
-- Ej: `USA`, `FRA`, `GBR`
+**Error: "Travel plan with id X not found" al eliminar**
+- El plan con ese ID no existe
+- Verifica el ID con `GET /travel-plans`
 
-**BD vacía en GET /countries**
-- Primero ejecuta `POST /countries/sync` con `Authorization: web123`
+**Error de validación al crear plan**
+- Verifica que todas las fechas estén en formato ISO 8601: `YYYY-MM-DD`
+- Verifica que countryCode tenga exactamente 3 caracteres
+- Verifica que title no sea vacío
+
+**No se crean planes (sin error)**
+- Asegúrate de que el servidor está corriendo: `npm run start:dev`
+- Verifica que la BD `travel.db` existe en la raíz del proyecto
+- Revisa los logs del servidor
+
+**La API externa (REST Countries) está lenta o no responde**
+- CountriesService intenta caché local primero
+- Si la API falla, se obtiene el país de caché (si existe)
+- Espera unos minutos y reintenta
 
 ---
 

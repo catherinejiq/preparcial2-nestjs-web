@@ -1,31 +1,3 @@
-import { Controller, Get, Param, Delete, UseGuards, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { CountriesService } from './countries.service';
-import { AdminGuard } from '../common/guards/admin.guard'; // Importamos el guard
-
-@Controller('countries')
-export class CountriesController {
-  constructor(private readonly countriesService: CountriesService) {}
-
-  @Get()
-  findAll() {
-    return this.countriesService.findAll();
-  }
-
-  @Post('sync')
-  @UseGuards(AdminGuard)
-  syncCountries() {
-    return this.countriesService.syncCountries();
-  }
-
-  @Get(':code')
-  findOne(@Param('code') code: string) {
-    return this.countriesService.findOneByCode(code);
-  }
-
-  @Delete(':code')
-  @UseGuards(AdminGuard) // Requiere Header 'Authorization: web123'
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('code') code: string) {
-    await this.countriesService.remove(code);
-  }
-}
+// Este controlador está DESHABILITADO - CountriesModule es solo para uso interno
+// El CountriesService es utilizado internamente por TravelPlansModule
+// No debe haber endpoints públicos para países
