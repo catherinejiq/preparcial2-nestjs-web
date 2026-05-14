@@ -16,6 +16,39 @@ export class CountriesService {
     return this.countriesRepository.find();
   }
 
+  async syncCountries() {
+    // Lista de países comunes para sincronizar
+    const countryCodes = [
+      'USA', 'GBR', 'FRA', 'DEU', 'ITA', 'ESP', 'MEX', 'BRA', 
+      'CAN', 'AUS', 'JPN', 'CHN', 'IND', 'KOR', 'COL', 'ARG', 'PER', 'VEN'
+    ];
+
+    const syncedCountries: Country[] = [];
+    
+    for (const code of countryCodes) {
+      try {
+        // Verificar si ya existe en BD
+        const existing = await this.countriesRepository.findOne({ where: { code } });
+        if (!existing) {
+          // Obtener de API externa
+          const countryData = await this.restCountriesProvider.getCountryByCode(code);
+          const saved = await this.countriesRepository.save(countryData);
+          syncedCountries.push(saved);
+        }
+      } catch (error) {
+        // Si no existe en la API, continuar con el siguiente
+        continue;
+      }
+    }
+
+    return {
+      message: 'Sincronización completada',
+      synced: syncedCountries.length,
+      total: countryCodes.length,
+      countries: syncedCountries,
+    };
+  }
+
   async findOneByCode(code: string) {
     const alpha3 = code.toUpperCase();
 

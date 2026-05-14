@@ -44,6 +44,26 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Sincronizar Countries
+
+Para cargar los países en la base de datos, ejecuta:
+
+```bash
+POST http://localhost:3000/countries/sync
+```
+
+**Headers requeridos:**
+```
+Authorization: web123
+```
+
+Esto cargará 18 países comunes desde la API de REST Countries en la base de datos local.
+
+**Alternativa:** Los países también se cargan automáticamente bajo demanda cuando consultas un país específico:
+```bash
+GET http://localhost:3000/countries/usa
+```
+
 ## Run tests
 
 ```bash

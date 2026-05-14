@@ -1,5 +1,4 @@
-
-import { Controller, Get, Param, Delete, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Delete, UseGuards, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { CountriesService } from './countries.service';
 import { AdminGuard } from '../common/guards/admin.guard'; // Importamos el guard
 
@@ -10,6 +9,12 @@ export class CountriesController {
   @Get()
   findAll() {
     return this.countriesService.findAll();
+  }
+
+  @Post('sync')
+  @UseGuards(AdminGuard)
+  syncCountries() {
+    return this.countriesService.syncCountries();
   }
 
   @Get(':code')
