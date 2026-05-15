@@ -5,6 +5,7 @@ import { TravelPlan } from './entities/travel-plan.entity';
 import { CreateTravelPlanDto } from './dto/create-travel-plan.dto';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CountriesService } from '../countries/countries.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class TravelPlansService {
@@ -12,9 +13,13 @@ export class TravelPlansService {
     @InjectRepository(TravelPlan)
     private travelPlansRepository: Repository<TravelPlan>,
     private countriesService: CountriesService,
+    private usersService: UsersService,
   ) {}
 
   async create(createTravelPlanDto: CreateTravelPlanDto) {
+    // Verificar que el usuario exista (lanza NotFoundException si no)
+    await this.usersService.findOne(createTravelPlanDto.userId);
+
     // Verificar si el país existe o traerlo de la API
     try {
       await this.countriesService.findEntityByCode(

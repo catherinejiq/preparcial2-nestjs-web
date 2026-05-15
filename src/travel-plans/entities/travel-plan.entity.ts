@@ -26,6 +26,9 @@ export class TravelPlan {
   @Column({ length: 1000, nullable: true })
   notes: string;
 
+  @Column()
+  userId: number = 0;
+
   @Column({ type: 'simple-json', nullable: true, default: '[]' })
   expenses: Expense[] = [];
 

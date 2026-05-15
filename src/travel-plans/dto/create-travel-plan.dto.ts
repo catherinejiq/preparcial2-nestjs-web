@@ -3,6 +3,8 @@ import {
   IsString,
   IsNotEmpty,
   IsDateString,
+  IsInt,
+  IsPositive,
   Length,
   IsOptional,
   MaxLength,
@@ -48,4 +50,8 @@ export class CreateTravelPlanDto {
   @IsOptional()
   @MaxLength(1000)
   notes?: string;
+
+  @IsInt()
+  @IsPositive()
+  userId!: number;
 }
