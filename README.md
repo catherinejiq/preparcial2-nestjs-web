@@ -377,3 +377,59 @@ src/
 | class-transformer| Transformación de entradas   |
 | Axios / rxjs     | Cliente HTTP con timeout     |
 | TypeScript 5     | Lenguaje                     |
+
+---
+
+## Cambios para Parcial 2
+
+### 1. Gastos embebidos en TravelPlan
+
+Se agregó el campo `expenses` a la entidad `TravelPlan` como un arreglo de objetos JSON almacenado con el tipo `simple-json` de TypeORM. Cada gasto contiene `description` (string, requerido), `amount` (number positivo, requerido) y `category` (string, requerido), definidos a través de la interfaz `Expense` y validados por `CreateExpenseDto`.
+
+La inserción individual de gastos se implementó sin tablas adicionales: el servicio recupera el plan por ID, hace `push` del nuevo objeto al arreglo `expenses` en memoria y persiste el plan completo con `repository.save()`. SQLite serializa el arreglo actualizado como texto JSON en la misma fila. Esto es equivalente al operador `$push` de MongoDB pero operando sobre el objeto en memoria antes de la escritura.
+
+Endpoint nuevo:
+
+| Método | Endpoint                      | Descripción                          |
+|--------|-------------------------------|--------------------------------------|
+| `POST` | `/travel-plans/:id/expenses`  | Agrega un gasto al plan indicado     |
+
+**Body esperado:**
+```json
+{
+  "description": "Vuelo ida y vuelta",
+  "amount": 450.00,
+  "category": "Transporte"
+}
+```
+
+`GET /travel-plans/:id` ya devuelve el arreglo `expenses` completo como parte de la respuesta.
+
+---
+
+### 2. Módulo de Usuarios y vinculación con TravelPlan
+
+Se creó `UsersModule` con la entidad `User` (campos: `id`, `name`, `email`) y su correspondiente controlador y servicio (CRUD básico).
+
+La entidad `TravelPlan` recibió el campo `userId` (number, requerido). Al crear un plan con `POST /travel-plans`, el servicio llama a `UsersService.findOne(userId)` antes de persistir; si el usuario no existe se lanza un `NotFoundException` (HTTP 404).
+
+Endpoints nuevos:
+
+| Método   | Endpoint        | Descripción              |
+|----------|-----------------|--------------------------|
+| `POST`   | `/users`        | Crear un usuario         |
+| `GET`    | `/users`        | Listar todos             |
+| `GET`    | `/users/:id`    | Obtener usuario por ID   |
+| `DELETE` | `/users/:id`    | Eliminar usuario por ID  |
+
+---
+
+### 3. Telemetría mediante Middleware
+
+Se modificó `LoggerMiddleware` para extraer el header `x-user-id` de cada petición entrante. El middleware imprime en consola:
+
+```
+[User: <ID>] accedió a <RUTA> - <MÉTODO>
+```
+
+Si el header no está presente, el log muestra `[User: ANONYMOUS]`. El middleware está registrado en `AppModule` y se aplica a las rutas `/travel-plans` y `/users`.
