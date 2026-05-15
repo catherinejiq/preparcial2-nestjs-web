@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TravelPlan } from './entities/travel-plan.entity';
 import { CreateTravelPlanDto } from './dto/create-travel-plan.dto';
+import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CountriesService } from '../countries/countries.service';
 
 @Injectable()
@@ -40,6 +41,15 @@ export class TravelPlansService {
       throw new NotFoundException(`Travel plan with id ${id} not found.`);
     }
     return plan;
+  }
+
+  async addExpense(id: number, createExpenseDto: CreateExpenseDto) {
+    const plan = await this.findOne(id);
+    if (!plan.expenses) {
+      plan.expenses = [];
+    }
+    plan.expenses.push(createExpenseDto);
+    return this.travelPlansRepository.save(plan);
   }
 
   async remove(id: number): Promise<void> {

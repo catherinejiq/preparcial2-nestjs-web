@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Param, Delete, HttpCode, HttpStatus, ParseIntPipe } from '@nestjs/common';
 import { TravelPlansService } from './travel-plans.service';
 import { CreateTravelPlanDto } from './dto/create-travel-plan.dto';
+import { CreateExpenseDto } from './dto/create-expense.dto';
 
 @Controller('travel-plans')
 export class TravelPlansController {
@@ -19,6 +20,14 @@ export class TravelPlansController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.travelPlansService.findOne(id);
+  }
+
+  @Post(':id/expenses')
+  addExpense(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() createExpenseDto: CreateExpenseDto,
+  ) {
+    return this.travelPlansService.addExpense(id, createExpenseDto);
   }
 
   @Delete(':id')
