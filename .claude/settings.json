@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(rm /Users/catherinejaque/Desktop/ProgWEB/preparcial2-nestjs-web/travel.db)"
+    ],
+    "additionalDirectories": [
+      "/Users/catherinejaque/Desktop/ProgWEB/preparcial2-nestjs-web"
     ]
   }
 }

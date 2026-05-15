@@ -8,8 +8,6 @@ import { RestCountriesProvider } from './providers/rest-countries.provider';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Country]), HttpModule],
-  // NOTA: No se registra CountriesController - es un módulo interno
-  // Sin endpoints públicos, solo servicio para uso de otros módulos
   controllers: [],
   providers: [CountriesService, RestCountriesProvider],
   exports: [CountriesService], 
