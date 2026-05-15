@@ -3,22 +3,13 @@ import { Request, Response, NextFunction } from 'express';
 
 @Injectable()
 export class LoggerMiddleware implements NestMiddleware {
-  private logger = new Logger('HTTP');
+  private logger = new Logger('Audit');
 
-  use(req: Request, res: Response, next: NextFunction): void {
+  use(req: Request, _res: Response, next: NextFunction): void {
     const { method, originalUrl } = req;
-    const start = Date.now();
+    const userId = (req.headers['x-user-id'] as string) ?? 'ANONYMOUS';
 
-
-    res.on('finish', () => {
-      const { statusCode } = res;
-      const duration = Date.now() - start;
-
-      
-      this.logger.log(
-        `${method} ${originalUrl} ${statusCode} - ${duration}ms`
-      );
-    });
+    this.logger.log(`[User: ${userId}] accedió a ${originalUrl} - ${method}`);
 
     next();
   }
